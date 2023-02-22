@@ -27,7 +27,7 @@ import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity {
 
-    private int STORAGE_PERMISSION_CODE = 1;
+    private int REQUEST_CODE_PERMISSIONS = 1;
 
     public ArrayList<String> historyList = new ArrayList<>(Arrays.asList("Recording_Jan15_15:03 PM", "Recording_Jan15_15:02 PM"));
 
@@ -56,38 +56,20 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void requestPermisison(){
-        if (ActivityCompat.shouldShowRequestPermissionRationale(this, android.Manifest.permission.READ_EXTERNAL_STORAGE)){
-            new AlertDialog.Builder(this)
-                    .setTitle("Permission needed")
-                    .setMessage("These permissions are needed in order to record audio and create and play audio on your device")
-                    .setPositiveButton("ok", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            ActivityCompat.requestPermissions(MainActivity.this, new String[] {android.Manifest.permission.READ_EXTERNAL_STORAGE}, STORAGE_PERMISSION_CODE);
-                        }
-                    })
-                    .setNegativeButton("cancel", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            dialog.dismiss();
-                        }
-                    })
-                    .create().show();
-        }else{
-            ActivityCompat.requestPermissions(this, new String[] {android.Manifest.permission.READ_EXTERNAL_STORAGE}, STORAGE_PERMISSION_CODE);
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == REQUEST_CODE_PERMISSIONS) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted, access external storage and record audio
+            } else {
+                // Permission denied, display a message to the user
+                Toast.makeText(this, "Permission denied. Permission needed to start the app", Toast.LENGTH_LONG).show();
+                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO}, REQUEST_CODE_PERMISSIONS);
+            }
         }
     }
-
-    private void onRequestPermissionResult(int requestCode, String permissions[], int[] grantResults){
-        if(grantResults[0] == PackageManager.PERMISSION_GRANTED){
-            Toast.makeText(this, "Permission Granted", Toast.LENGTH_SHORT).show();
-        }else{
-            Toast.makeText(this, "Permission Denied", Toast.LENGTH_SHORT).show();
-
-        }
-    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -96,28 +78,27 @@ public class MainActivity extends AppCompatActivity {
         ListView lv = findViewById(R.id.record_history_lv);
         lv.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, historyList));
 
-        boolean hasReadExternal = ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_EXTERNAL_STORAGE)==PackageManager.PERMISSION_GRANTED;
-        boolean hasWriteExternal = ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)==PackageManager.PERMISSION_GRANTED;
-        boolean hasRecordAudio = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED;
-
         ImageView recordBtn = findViewById(R.id.record_btn);
         recordBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 //Check for permission first
-                if(hasRecordAudio == false || hasWriteExternal == false || hasReadExternal == false) {
-                    ActivityCompat.requestPermissions(this,
-                            new String[]{
-                                    Manifest.permission.READ_EXTERNAL_STORAGE,
-                                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                                    Manifest.permission.RECORD_AUDIO,
-                            }, 1);
+                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+                        || ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+
+                    // Request permission to access external storage and record audio
+                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO}, REQUEST_CODE_PERMISSIONS);
                 }else{
-                    Toast
                     recordAudio();
                 }
             }
         });
+
+
+
+
     }
 
+
 }
+
