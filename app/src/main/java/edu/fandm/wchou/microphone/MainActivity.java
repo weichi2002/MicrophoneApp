@@ -9,12 +9,11 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import android.Manifest;
-import android.content.Context;
-import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -22,6 +21,9 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.IOException;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -29,20 +31,57 @@ public class MainActivity extends AppCompatActivity {
 
     private int REQUEST_CODE_PERMISSIONS = 1;
 
-    public ArrayList<String> historyList = new ArrayList<>(Arrays.asList("Recording_Jan15_15:03 PM", "Recording_Jan15_15:02 PM"));
+    private MediaRecorder mc = null;
 
-    MediaRecorder mc = new MediaRecorder();
-    MediaPlayer mp = new MediaPlayer();
+    public int recordingNumber = 0;
+
+    public ArrayList<String> historyList = new ArrayList<>(Arrays.asList("Recording_Jan15_15:03 PM", "Recording_Jan15_15:02 PM"));
     boolean isRecording = false;
     boolean isPlaying = false;
     private void recordAudio(){
+
+        mc = new MediaRecorder();
+        mc.reset();
+        mc.setAudioSource(MediaRecorder.AudioSource.MIC);
+        mc.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+
+        String state = Environment.getExternalStorageDirectory().getAbsolutePath();
+        if(!state.equals(Environment.MEDIA_MOUNTED)){
+            Toast.makeText(MainActivity.this, "External Storage is not available", Toast.LENGTH_SHORT).show();
+            return;
+        }else{
+            File recordings = new File(state, "MediaRecorderSample");
+            if (!recordings.exists()) {
+                recordings.mkdirs();
+            }
+            //use time stamp as unique id
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                LocalTime currentTime = LocalTime.now();
+                mc.setOutputFile(recordings.getAbsolutePath() + "/my_recording_" + currentTime.toString()+".mp4");
+            }else{
+                mc.setOutputFile(recordings.getAbsolutePath() + "/my_recording_" + String.valueOf(recordingNumber) + ".mp4");
+                recordingNumber+=1;
+            }
+        }
+
         if(isRecording==false){
             Log.d("Record Audio", "Start Recording");
             isRecording = true;
-            //start recording or something
+            try {
+                mc.prepare();
+                mc.start();
+            } catch (IllegalStateException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }else{
-            isRecording = false;
             Log.d("Record Audio", "Stop Recording");
+            isRecording = false;
+            mc.stop();
+            mc.reset();
+            mc.release();
+            mc = null;
             //stop recording... and write the file to the external storage
         }
     }
@@ -65,7 +104,7 @@ public class MainActivity extends AppCompatActivity {
                 // Permission granted, access external storage and record audio
             } else {
                 // Permission denied, display a message to the user
-                Toast.makeText(this, "Permission denied. Permission needed to start the app", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Permission denied. Permission needed to start the app", Toast.LENGTH_SHORT).show();
                 ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO}, REQUEST_CODE_PERMISSIONS);
             }
         }
@@ -85,7 +124,6 @@ public class MainActivity extends AppCompatActivity {
                 //Check for permission first
                 if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
                         || ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-
                     // Request permission to access external storage and record audio
                     ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO}, REQUEST_CODE_PERMISSIONS);
                 }else{
@@ -93,9 +131,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-
-
-
 
     }
 
