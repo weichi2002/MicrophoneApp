@@ -27,6 +27,7 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -35,13 +36,12 @@ import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
     private ListView lv;
+    private String appFolderPath;
     private String timeStamp;
     private ArrayAdapter<String> historyAdapter;
     private int REQUEST_CODE_PERMISSIONS = 1;
-
     private MediaRecorder mc = null;
     private MediaPlayer mp = null;
-
     public ArrayList<String> historyList = new ArrayList<>();
     boolean isRecording = false;
 
@@ -49,31 +49,15 @@ public class MainActivity extends AppCompatActivity {
         ContextWrapper cw = new ContextWrapper(getApplicationContext());
         File path = cw.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
         File recordings = new File(path, "MediaRecorderSample");
+        appFolderPath = recordings.getAbsolutePath();
         if (!recordings.exists()) {
             recordings.mkdirs();
         }
         Date date = new Date();
         timeStamp = date.toString().replace(" ", "_");
-        String filePath = recordings.getAbsolutePath() + "/myRecording@" + timeStamp +".mp4";
+        String filePath = appFolderPath + "/myRecording@" + timeStamp +".mp4";
         Log.d("Write file", "wrote to" + filePath);
         return filePath;
-
-
-//        String state = Environment.getExternalStorageDirectory().getAbsolutePath();
-//        Log.d("record Audio", "State "+ state);
-//        if(!Environment.MEDIA_MOUNTED.equals(state)){
-//            Toast.makeText(MainActivity.this, "External Storage is not available for writing", Toast.LENGTH_SHORT).show();
-//            return;
-//        }else{
-//            File recordings = new File(state, "MediaRecorderSample");
-//            if (!recordings.exists()) {
-//                recordings.mkdirs();
-//            }
-//            Date date = new Date();
-//            Log.d("Write file", "wrote to" + recordings.getAbsolutePath());
-//            mc.setOutputFile(recordings.getAbsolutePath() + "/myRecording@" + date.toString()+".mp4");
-//            historyList.add(recordings.getAbsolutePath() + "/my_recording@" + date.toString()+".mp4");
-//        }
     }
 
     private void recordAudio(){
@@ -83,19 +67,19 @@ public class MainActivity extends AppCompatActivity {
             try {
                 mc = new MediaRecorder();
                 mc.setAudioSource(MediaRecorder.AudioSource.MIC);
-                mc.setOutputFormat(MediaRecorder.OutputFormat.AMR_WB);
+                mc.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
                 mc.setOutputFile(getPath());
-                mc.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_WB);
+                mc.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+                mc.setAudioSamplingRate(44100);
                 mc.prepare();
                 mc.start();
-                //change the flag
 
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }else{
             Log.d("Record Audio", "Stop Recording");
-            historyList.add("myRecording@" + timeStamp + ".awb");
+            historyList.add("myRecording@" + timeStamp + ".mp4");
             historyAdapter.notifyDataSetChanged();
             mc.stop();
             mc.reset();
@@ -104,40 +88,29 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void playAudio(String selected) {
-        String recordingPath = "/storage/emulated/0/Android/data/edu.fandm.wchou.microphone/files/Documents/MediaRecorderSample/" + selected;
-        Log.d("PlayAudio", recordingPath);
-        MediaPlayer mediaPlayer = new MediaPlayer();
+    private void playAudio(String selected) throws FileNotFoundException {
+        String recordingPath = appFolderPath + "/" + selected;
+        Log.d("Play Audio", recordingPath);
+
+        mp = new MediaPlayer();
+        FileInputStream fis = null;
         try {
-            mediaPlayer.setDataSource(recordingPath);
-            mediaPlayer.prepare();
-            mediaPlayer.start();
-            mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-                @Override
-                public void onCompletion(MediaPlayer mp) {
-                    mediaPlayer.release();
-                    Log.d("Play Audio", "Playback complete");
-                }
-            });
+            File directory = new File(recordingPath);
+            fis = new FileInputStream(directory);
+            mp.setDataSource(fis.getFD());
+            mp.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            mp.prepare();
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
+        } finally {
+            if (fis != null) {
+                try {
+                    fis.close();
+                } catch (IOException ignore) {
+                }
+            }
         }
-//        mp = new MediaPlayer();
-//        mp.setAudioAttributes(
-//                new AudioAttributes.Builder()
-//                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-//                        .setUsage(AudioAttributes.USAGE_MEDIA)
-//                        .build()
-//        );
-//        mp.setAudioStreamType(AudioManager.STREAM_MUSIC);
-//
-//        try {
-//            mp.setDataSource(recordingPath);
-//            mp.prepare();
-//            mp.start();
-//        }  catch (IOException e) {
-//            e.printStackTrace();
-//        }
+        mp.start();
     }
 
     @Override
@@ -159,10 +132,14 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        if (savedInstanceState != null) {
+            historyList = savedInstanceState.getStringArrayList("myList");
+        }
 ;
         this.lv = findViewById(R.id.record_history_lv);
         this.historyAdapter= new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, historyList);
         lv.setAdapter(historyAdapter);
+
 
         lv.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -201,6 +178,13 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+    }
+
+    //preserve the data
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putStringArrayList("myList", historyList);
     }
 
 
