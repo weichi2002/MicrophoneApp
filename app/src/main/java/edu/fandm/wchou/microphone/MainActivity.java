@@ -1,6 +1,7 @@
 package edu.fandm.wchou.microphone;
 
-import static android.media.MediaRecorder.AudioSource.MIC;
+
+import static android.graphics.BlendMode.COLOR;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -9,9 +10,10 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.ContextWrapper;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
-import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
@@ -24,40 +26,59 @@ import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.Toast;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
     private ListView lv;
-    private String appFolderPath;
+    static String appFolderPath;
     private String timeStamp;
-    private ArrayAdapter<String> historyAdapter;
     private int REQUEST_CODE_PERMISSIONS = 1;
     private MediaRecorder mc = null;
-    private MediaPlayer mp = null;
+    static MediaPlayer mp = null;
     public ArrayList<String> historyList = new ArrayList<>();
+    public AudioAdapter adapter;
     boolean isRecording = false;
+    private String audioFilePath;
 
     private String getPath(){
-        ContextWrapper cw = new ContextWrapper(getApplicationContext());
-        File path = cw.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
-        File recordings = new File(path, "MediaRecorderSample");
-        appFolderPath = recordings.getAbsolutePath();
-        if (!recordings.exists()) {
-            recordings.mkdirs();
-        }
+
         Date date = new Date();
         timeStamp = date.toString().replace(" ", "_");
         String filePath = appFolderPath + "/myRecording@" + timeStamp +".mp4";
-        Log.d("Write file", "wrote to" + filePath);
+        audioFilePath = filePath;
+        Log.d("getPath", "Wrote to " + filePath);
         return filePath;
+    }
+
+    private void promptRemoveItemOnHold(AdapterView<?> parent, View view, final int position, long id) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Remove Item")
+                .setIcon(R.drawable.delete_icon)
+                .setMessage("Do you want to remove this item?")
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        // Remove the item from the adapter
+                        String audioFile = adapter.getItem(position);
+                        String toDelete = MainActivity.appFolderPath + "/" + audioFile;
+                        File file = new File(toDelete);
+                        if(file.exists()) {
+                            file.delete();
+                        }
+                        ArrayAdapter adapter = (ArrayAdapter) parent.getAdapter();
+                        adapter.remove(adapter.getItem(position));
+                    }
+                })
+                .setNegativeButton("No", null);
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
 
     private void recordAudio(){
@@ -80,7 +101,7 @@ public class MainActivity extends AppCompatActivity {
         }else{
             Log.d("Record Audio", "Stop Recording");
             historyList.add("myRecording@" + timeStamp + ".mp4");
-            historyAdapter.notifyDataSetChanged();
+            adapter.notifyDataSetChanged();
             mc.stop();
             mc.reset();
             mc.release();
@@ -88,7 +109,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void playAudio(String selected) throws FileNotFoundException {
+    static void playAudio(String selected) throws FileNotFoundException {
         String recordingPath = appFolderPath + "/" + selected;
         Log.d("Play Audio", recordingPath);
 
@@ -113,6 +134,37 @@ public class MainActivity extends AppCompatActivity {
         mp.start();
     }
 
+//    public static boolean deleteDir(File dir) {
+//        if (dir != null && dir.isDirectory()) {
+//            String[] children = dir.list();
+//            for (int i = 0; i < children.length; i++) {
+//                boolean success = deleteDir(new File(dir, children[i]));
+//                if (!success) {
+//                    return false;
+//                }
+//            }
+//        }
+//        return dir.delete();
+//    }
+
+    private void createFolder(){
+        ContextWrapper cw = new ContextWrapper(getApplicationContext());
+        File path = cw.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
+        File recordings = new File(path, "MediaRecorderSample");
+        appFolderPath = recordings.getAbsolutePath();
+        if (!recordings.exists()) {
+            recordings.mkdirs();
+        }
+        File[] recordingFiles = recordings.listFiles();
+        for (File file : recordingFiles) {
+            String toLoad = file.getAbsolutePath().replace(appFolderPath, "").replace("/","");
+            if (historyList.contains(toLoad)){
+                continue;
+            }
+            historyList.add(toLoad);
+        }
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -135,22 +187,17 @@ public class MainActivity extends AppCompatActivity {
         if (savedInstanceState != null) {
             historyList = savedInstanceState.getStringArrayList("myList");
         }
-;
-        this.lv = findViewById(R.id.record_history_lv);
-        this.historyAdapter= new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, historyList);
-        lv.setAdapter(historyAdapter);
 
+        createFolder();
+        lv = findViewById(R.id.record_history_lv);
+        adapter = new AudioAdapter(this, historyList);
+        lv.setAdapter(adapter);
 
-        lv.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+        lv.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                String selected = (String) (lv.getItemAtPosition(position));
-                try {
-                    playAudio(selected);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-
+            public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+                promptRemoveItemOnHold(parent, view, position, id);
+                return true;
             }
         });
 
@@ -180,13 +227,28 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    //preserve the data
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putStringArrayList("myList", historyList);
+        outState.putString("audioFilePath", audioFilePath);
     }
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
 
+        if (isRecording && audioFilePath!=null){
+            Log.d("Ondestroyed", "yoyo");
+            historyList.add("myRecording@" + timeStamp + ".mp4");
+            adapter.notifyDataSetChanged();
+            mc.stop();
+            mc.reset();
+            mc.release();
+            File audioFile = new File(audioFilePath);
+            mc = null;
+        }
+
+    }
 
 }
 
