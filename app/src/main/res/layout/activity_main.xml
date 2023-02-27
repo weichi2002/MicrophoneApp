@@ -9,7 +9,7 @@
     <ListView
         android:id="@+id/record_history_lv"
         android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
         android:divider="#AD8DE6"
         android:dividerHeight="1dp"
         android:listSelector="#ACD8AC"
@@ -18,8 +18,7 @@
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.001"
-        />
+        app:layout_constraintVertical_bias="0.001" />
 
 
     <View
@@ -28,12 +27,11 @@
         android:layout_height="125dp"
         android:background="#322626"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="@id/record_history_lv"
         app:layout_constraintVertical_bias="1.0" />
-
 
     <View
         android:id="@+id/dark_view"

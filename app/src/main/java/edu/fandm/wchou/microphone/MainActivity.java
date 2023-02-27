@@ -73,9 +73,18 @@ public class MainActivity extends AppCompatActivity {
                         }
                         ArrayAdapter adapter = (ArrayAdapter) parent.getAdapter();
                         adapter.remove(adapter.getItem(position));
+                        view.setBackgroundColor(0);
+
                     }
                 })
-                .setNegativeButton("No", null);
+                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                        view.setBackgroundColor(0);
+
+                    }
+                });
 
         AlertDialog dialog = builder.create();
         dialog.show();
@@ -197,6 +206,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
                 promptRemoveItemOnHold(parent, view, position, id);
+                view.setBackgroundResource(R.color.red);
                 return true;
             }
         });
