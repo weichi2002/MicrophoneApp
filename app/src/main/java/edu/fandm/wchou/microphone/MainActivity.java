@@ -109,7 +109,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }else{
             Log.d("Record Audio", "Stop Recording");
-            historyList.add("myRecording@" + timeStamp + ".mp4");
+            historyList.add(0, "myRecording@" + timeStamp + ".mp4");
             adapter.notifyDataSetChanged();
             mc.stop();
             mc.reset();
@@ -249,7 +249,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (isRecording && audioFilePath!=null){
             Log.d("Ondestroyed", "yoyo");
-            historyList.add("myRecording@" + timeStamp + ".mp4");
+            historyList.add(0, "myRecording@" + timeStamp + ".mp4");
             adapter.notifyDataSetChanged();
             mc.stop();
             mc.reset();
